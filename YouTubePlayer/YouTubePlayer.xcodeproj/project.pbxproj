@@ -113,10 +113,11 @@
 			};
 			buildConfigurationList = 502AE8591A475FD500306AD1 /* Build configuration list for PBXProject "YouTubePlayer" */;
 			compatibilityVersion = "Xcode 3.2";
-			developmentRegion = English;
+			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				Base,
 			);
 			mainGroup = 502AE8551A475FD500306AD1;
 			productRefGroup = 502AE8601A475FD500306AD1 /* Products */;
