@@ -6,7 +6,7 @@
 //  Copyright (c) 2014 Giles Van Gruisen. All rights reserved.
 //
 
-import UIKit
+import WebKit
 
 public enum YouTubePlayerState: String {
     case Unstarted = "-1"
@@ -82,12 +82,12 @@ public func videoIDFromYouTubeURL(_ videoURL: URL) -> String? {
 }
 
 /** Embed and control YouTube videos */
-open class YouTubePlayerView: UIView, UIWebViewDelegate {
+open class YouTubePlayerView: UIView, WKNavigationDelegate {
     
     public typealias YouTubePlayerParameters = [String: AnyObject]
     public var baseURL = "about:blank"
     
-    fileprivate var webView: UIWebView!
+    fileprivate var webView: WKWebView!
     
     /** The readiness of the player */
     fileprivate(set) open var ready = false
@@ -130,12 +130,15 @@ open class YouTubePlayerView: UIView, UIWebViewDelegate {
     // MARK: Web view initialization
     
     fileprivate func buildWebView(_ parameters: [String: AnyObject]) {
-        webView = UIWebView()
+        let configuration = WKWebViewConfiguration()
+        configuration.allowsInlineMediaPlayback = true
+        configuration.mediaPlaybackRequiresUserAction = false
+        configuration.preferences.javaScriptEnabled = true
+        
+        webView = WKWebView(frame: frame, configuration: configuration)
         webView.isOpaque = false
         webView.backgroundColor = UIColor.clear
-        webView.allowsInlineMediaPlayback = true
-        webView.mediaPlaybackRequiresUserAction = false
-        webView.delegate = self
+        webView.navigationDelegate = self
         webView.scrollView.isScrollEnabled = false
     }
     
@@ -194,12 +197,16 @@ open class YouTubePlayerView: UIView, UIWebViewDelegate {
         evaluatePlayerCommand("seekTo(\(seconds), \(seekAhead))")
     }
     
-    open func getDuration() -> String? {
-        return evaluatePlayerCommand("getDuration()")
+    open func getDuration(completion: ((Double?) -> Void)? = nil) {
+        evaluatePlayerCommand("getDuration()") { (result) in
+            completion?(result as? Double)
+        }
     }
     
-    open func getCurrentTime() -> String? {
-        return evaluatePlayerCommand("getCurrentTime()")
+    open func getCurrentTime(completion: ((Double?) -> Void)? = nil) {
+        evaluatePlayerCommand("getCurrentTime()") { (result) in
+            completion?(result as? Double)
+        }
     }
     
     // MARK: Playlist controls
@@ -212,11 +219,25 @@ open class YouTubePlayerView: UIView, UIWebViewDelegate {
         evaluatePlayerCommand("nextVideo()")
     }
     
+    /*
     @discardableResult fileprivate func evaluatePlayerCommand(_ command: String) -> String? {
         let fullCommand = "player." + command + ";"
         return webView.stringByEvaluatingJavaScript(from: fullCommand)
     }
+    */
     
+    fileprivate func evaluatePlayerCommand(_ command: String, completion: ((Any?) -> Void)? = nil) {
+        let fullCommand = "player." + command + ";"
+        webView.evaluateJavaScript(fullCommand) { (result, error) in
+            if let error = error, (error as NSError).code != 5 { // NOTE: ignore :Void return
+                print(error)
+                printLog("Error executing javascript")
+                completion?(nil)
+            }
+
+            completion?(result)
+        }
+    }
     
     // MARK: Player setup
     
@@ -339,16 +360,19 @@ open class YouTubePlayerView: UIView, UIWebViewDelegate {
     }
     
     
-    // MARK: UIWebViewDelegate
-    
-    open func webView(_ webView: UIWebView, shouldStartLoadWith request: URLRequest, navigationType: UIWebView.NavigationType) -> Bool {
-        
-        let url = request.url
-        
-        // Check if ytplayer event and, if so, pass to handleJSEvent
-        if let url = url, url.scheme == "ytplayer" { handleJSEvent(url) }
-        
-        return true
+    // MARK: WKNavigationDelegate
+    open func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+        var action: WKNavigationActionPolicy?
+        defer {
+            decisionHandler(action ?? .allow)
+        }
+
+        guard let url = navigationAction.request.url else { return }
+
+        if url.scheme == "ytplayer" {
+            handleJSEvent(url)
+            action = .cancel
+        }
     }
 }
 

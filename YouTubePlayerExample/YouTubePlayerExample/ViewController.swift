@@ -55,12 +55,12 @@ class ViewController: UIViewController {
     }
     
     @IBAction func currentTime(sender: UIButton) {
-        let title = String(format: "Current Time %@", playerView.getCurrentTime() ?? "0")
+        let title = String(format: "Current Time %@", playerView.getCurrentTime() as? CVarArg ?? "0")
         currentTimeButton.setTitle(title, for: .normal)
     }
     
     @IBAction func duration(sender: UIButton) {
-        let title = String(format: "Duration %@", playerView.getDuration() ?? "0")
+        let title = String(format: "Duration %@", playerView.getDuration() as? CVarArg ?? "0")
         durationButton.setTitle(title, for: .normal)
     }
 
